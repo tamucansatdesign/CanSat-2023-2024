@@ -10,7 +10,6 @@ namespace Hardware
 
   float EE_BASE_PRESSURE = -1;
   uint16_t EE_PACKET_COUNT = 0;
-  String EE_MISSION_TIME = "00:00:00.00";
 
   String lastCMD = "None";
 

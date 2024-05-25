@@ -34,7 +34,6 @@ namespace Common
   const uint16_t BP_ADDR = 0;  // base (ground-level) pressure used for calibration ; address space: 0-4 (float = 4 bytes)
   const uint16_t PC_ADDR = 4;  // packet count                                      ; address space: 4-6 (uint16_t = 2 bytes)
   const uint16_t ST_ADDR = 6;  // states                                            ; address space: 6-8 (uint16_t = 2 bytes)
-  const uint16_t MS_ADDR = 8;  // mission time                                      ; address space: 8-17 (Fixed-size String with 11 characters = 11 bytes)
   
   struct Payload_States
   {

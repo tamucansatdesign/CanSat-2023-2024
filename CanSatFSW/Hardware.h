@@ -26,7 +26,6 @@ namespace Hardware
   // Variables preceded by "EE_" are values that write/read from EEPROM
   extern float EE_BASE_PRESSURE;               // CAL -> base_pressure ; else -> -1
   extern uint16_t EE_PACKET_COUNT;
-  extern String EE_MISSION_TIME;
 
   extern int lastCheck;
   extern String lastCMD;
