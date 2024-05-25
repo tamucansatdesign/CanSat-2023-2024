@@ -35,7 +35,7 @@ namespace Common
   const uint16_t PC_ADDR = 4;  // packet count                                      ; address space: 4-6 (uint16_t = 2 bytes)
   const uint16_t ST_ADDR = 6;  // states                                            ; address space: 6-8 (uint16_t = 2 bytes)
   
-  struct Payload_States
+  struct CanSat_States
   {
     char HS_DEPLOYED; // heat shield deployment: deployed -> 'P' ; else 'N'
     char HS_RELEASED; // heat shield released: released -> 'R' ; else 'N'

@@ -4,7 +4,7 @@
 
 namespace States
 {    
-  void Landing(Common::Payload_States &pay_states)
+  void Landing()
   { 
     States::processCommands(1,1,1,1,1);
     Hardware::read_gps();

@@ -2,7 +2,7 @@
 #include "Hardware.h"
 #include "States.h"
 
-Common::Payload_States pay_states;
+Common::CanSat_States cansat_states;
 
 // IMPROVEMENTS:
 // when processor resets request update from GSC: lastCMD, cameras operating?
@@ -39,7 +39,7 @@ void loop() {
   Hardware::read_sensors();
 
   if (Hardware::CX) {
-    String packet = States::build_packet("Test", pay_states);
+    String packet = States::build_packet("Test", cansat_states);
     Serial.println(packet);
     Hardware::write_ground_radio(packet);
   }
@@ -57,44 +57,44 @@ void loop() {
   }
 }
 
-void setup() {
-  Serial.begin(Common::SERIAL_BAUD);
-  Serial.println("Serial Connection Established.");
+// void setup() {
+//   Serial.begin(Common::SERIAL_BAUD);
+//   Serial.println("Serial Connection Established.");
 
-  // Initialize hardware
-  Hardware::init();
+//   // Initialize hardware
+//   Hardware::init();
 
-  // Update recovery parameters with EEPROM
-  EEPROM.get(Common::BP_ADDR, Hardware::EE_BASE_PRESSURE);
-  EEPROM.get(Common::PC_ADDR, Hardware::EE_PACKET_COUNT);
-  EEPROM.get(Common::ST_ADDR, States::EE_STATE);
+//   // Update recovery parameters with EEPROM
+//   EEPROM.get(Common::BP_ADDR, Hardware::EE_BASE_PRESSURE);
+//   EEPROM.get(Common::PC_ADDR, Hardware::EE_PACKET_COUNT);
+//   EEPROM.get(Common::ST_ADDR, States::EE_STATE);
 
-  // Sync up RTC with GPS
-  setTime(Hardware::gps_data.hour, Hardware::gps_data.minute, Hardware::gps_data.seconds, Hardware::gps_data.day, Hardware::gps_data.month, Hardware::gps_data.year);
-}
+//   // Sync up RTC with GPS
+//   setTime(Hardware::gps_data.hour, Hardware::gps_data.minute, Hardware::gps_data.seconds, Hardware::gps_data.day, Hardware::gps_data.month, Hardware::gps_data.year);
+// }
 
-void loop() {
-  // Loop through each state 
-  switch (States::EE_STATE)
-  { 
-    case 1:
-      States::Standby(pay_states);
-      break;
-    case 2:
-      States::Ascent(pay_states);
-      break;
-    case 3:
-      States::Separation(pay_states);
-      break;
-    case 4:
-      States::Descent(pay_states);
-      break;    
-    case 5:
-      States::Landing(pay_states);
-      break;
-    default:
-      States::Standby(pay_states);
-      break;
-  }
-  delay(Common::TELEMETRY_DELAY);
-}
+// void loop() {
+//   // Loop through each state 
+//   switch (States::EE_STATE)
+//   { 
+//     case 1:
+//       States::Standby(cansat_states);
+//       break;
+//     case 2:
+//       States::Ascent();
+//       break;
+//     case 3:
+//       States::Separation(cansat_states);
+//       break;
+//     case 4:
+//       States::Descent(cansat_states);
+//       break;    
+//     case 5:
+//       States::Landing();
+//       break;
+//     default:
+//       States::Standby(cansat_states);
+//       break;
+//   }
+//   delay(Common::TELEMETRY_DELAY);
+// }

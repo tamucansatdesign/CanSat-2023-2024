@@ -4,7 +4,7 @@
 
 namespace States
 {    
-  void Descent(Common::Payload_States &pay_states)
+  void Descent(Common::CanSat_States &cansat_states)
   { 
     States::processCommands(1,1,1,1,1);
     Hardware::read_gps();
@@ -18,18 +18,18 @@ namespace States
 
     // Transmit 1 Hz telemetry
     if (Hardware::CX) {
-      String packet = States::build_packet("Descent", pay_states);
+      String packet = States::build_packet("Descent", cansat_states);
       Serial.println(packet);
       Hardware::write_ground_radio(packet);
     }
 
     // Deploy parachute
     Hardware::para_servo.write(180);
-    pay_states.PC_DEPLOYED = 'C';
+    cansat_states.PC_DEPLOYED = 'C';
 
     // TODO: Release heat shield rings
     //       Move landing legs to landing configuration
-    pay_states.HS_RELEASED = 'R';
+    cansat_states.HS_RELEASED = 'R';
 
   }
 }

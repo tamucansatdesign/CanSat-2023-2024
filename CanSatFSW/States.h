@@ -12,26 +12,26 @@ namespace States
     // Initialize hardware
     // Update recovery parameters with EEPROM
     // Sync up RTC with GPS
-  void Standby(Common::Payload_States &pay_states);         // Standby -> EE_STATE = 1
+  void Standby(Common::CanSat_States &cansat_states);         // Standby -> EE_STATE = 1
     // State -> Ascent: if altitude >> 2m
     // Transmit 1 Hz telemetry
     // Start recording of main camera (horizontal view)
   void Ascent();                                            // Ascent -> EE_STATE = 2
     // State -> Separation: if airspeed << 3 m/s and altitude >> 2m
     // Transmit 1 Hz telemetry
-  void Separation(Common::Payload_States &pay_states);      // Separation -> EE_STATE = 3
+  void Separation(Common::CanSat_States &cansat_states);      // Separation -> EE_STATE = 3
     // Reached peak altitude: 
       // State -> Descent: if airspeed >> 0 m/s and altitude < 110m
       // Transmit 1 Hz telemetry
       // Start recording of bonus camera (aft view)
       // Deploy heat shield
-  void Descent(Common::Payload_States &pay_states);         // Descent -> EE_STATE = 4
+  void Descent(Common::CanSat_States &cansat_states);         // Descent -> EE_STATE = 4
     // Altitude 100m:
       // State -> Landing: if airspeed < 1 m/s and altitude << 2m
       // Deploy parachute
       // Release heat shield rings
       // Move landing legs to landing deployment
-  void Landing(Common::Payload_States &pay_states);         // Landing -> EE_STATE = 5
+  void Landing();         // Landing -> EE_STATE = 5
     // Cease telemetry
     // Stop both camera recordings
     // Activate audio beacon
@@ -140,7 +140,7 @@ namespace States
     }
   }
 
-  static String build_packet(String state, const Common::Payload_States &pay_states)
+  static String build_packet(String state, const Common::CanSat_States &cansat_states)
   {
     // <TEAM_ID>, <MISSION_TIME>, <PACKET_COUNT>, <MODE>, <STATE>, <ALTITUDE>,
     // <AIR_SPEED>, <HS_DEPLOYED>, <PC_DEPLOYED>, <TEMPERATURE>, <VOLTAGE>,
@@ -156,8 +156,8 @@ namespace States
     packet += state + ",";
     packet += String(Hardware::sensor_data.altitude) + ","; 
     packet += String(Hardware::sensor_data.airspeed) + ",";
-    packet += pay_states.HS_DEPLOYED + ",";
-    packet += pay_states.PC_DEPLOYED + ",";
+    packet += cansat_states.HS_DEPLOYED + ",";
+    packet += cansat_states.PC_DEPLOYED + ",";
     packet += String(Hardware::sensor_data.temperature) + ",";
     packet += String(Hardware::sensor_data.vbat) + ",";
     packet += String(Hardware::sensor_data.pressure) + ",";

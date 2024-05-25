@@ -4,7 +4,7 @@
 
 namespace States
 {    
-  void Separation(Common::Payload_States &pay_states)
+  void Separation(Common::CanSat_States &cansat_states)
   { 
     States::processCommands(1,1,1,1,1);
     Hardware::read_gps();
@@ -18,7 +18,7 @@ namespace States
 
     // Transmit 1 Hz telemetry
     if (Hardware::CX) {
-      String packet = States::build_packet("Separation", pay_states);
+      String packet = States::build_packet("Separation", cansat_states);
       Serial.println(packet);
       Hardware::write_ground_radio(packet);
     }
@@ -28,6 +28,6 @@ namespace States
 
     // TODO: Deploy heat shield
   
-    pay_states.HS_DEPLOYED = 'P';
+    cansat_states.HS_DEPLOYED = 'P';
   }
 }

@@ -6,7 +6,7 @@ namespace States
 {  
   uint16_t EE_STATE = 0;
   
-  void Standby(Common::Payload_States &pay_states)
+  void Standby(Common::CanSat_States &cansat_states)
   { 
     States::processCommands(1,1,1,1,1);
     Hardware::read_gps();
@@ -20,7 +20,7 @@ namespace States
     
     // Transmit 1 Hz telemetry
     if (Hardware::CX) {
-      String packet = States::build_packet("Standby", pay_states);
+      String packet = States::build_packet("Standby", cansat_states);
       Serial.println(packet);
       Hardware::write_ground_radio(packet);
     }
@@ -29,9 +29,9 @@ namespace States
     Hardware::main_cam.update_camera(true);
     
     // Initialize payload states
-    pay_states.HS_DEPLOYED = 'N';
-    pay_states.HS_RELEASED = 'N';
-    pay_states.PC_DEPLOYED = 'N';
+    cansat_states.HS_DEPLOYED = 'N';
+    cansat_states.HS_RELEASED = 'N';
+    cansat_states.PC_DEPLOYED = 'N';
     
   }
 }
