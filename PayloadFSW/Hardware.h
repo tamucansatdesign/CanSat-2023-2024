@@ -3,7 +3,6 @@
 #define __HARDWARE_H__
 
 #include "Common.h"
-#include "States.h"
 
 #include <Wire.h>             // I2C protocol
 #include <Adafruit_BMP3XX.h>  // BMP388 
@@ -13,98 +12,78 @@
 #include <Adafruit_GPS.h>     // GPS
 #include <EEPROM.h>
 #include <Servo.h>
-// #include <SD.h>
+#include <SD.h>
 
 // Covers initialization of sensors/radios, and any functions that utilize this hardware
 namespace Hardware
 {
-  // Variables preceded by "EE_" are values that write/read from EEPROM
-  extern bool SIM_ACTIVATE;
-  extern bool SIM_ENABLE;
+  extern bool SIM_ENABLE;                      // SIM ENABLE -> true ; SIM DISABLE -> false
+  extern bool SIM_ACTIVATE;                    // SIM ENABLE and SIM ACTIVATE -> true ; SIM DISABLE -> false
   extern int SIM_PRESSURE;
 
-  extern bool CX;                              // CX on = true ; CX off = false
+  extern bool CX;                              // CX on -> true ; CX off -> false
 
-  extern float EE_BASE_ALTITUDE;               // CAL = base_altitude ; else = -100
+  // Variables preceded by "EE_" are values that write/read from EEPROM
+  extern float EE_BASE_PRESSURE;               // CAL -> base_pressure ; else -> -1
   extern uint16_t EE_PACKET_COUNT;
   extern String EE_MISSION_TIME;
 
   extern int lastCheck;
   extern String lastCMD;
 
-  extern elapsedMillis cameraHold;
-  extern bool cameraRecording;
-  extern bool firstCameraCall;
-
-  // const int chipSelect = BUILTIN_SDCARD;
-  // static File telemetry;
+  const int chipSelect = BUILTIN_SDCARD;
+  static File telemetry;
 
   extern Adafruit_BMP3XX bmp;
   extern Adafruit_BNO08x bno;
   extern Adafruit_GPS gps;
   extern bfs::Ms4525do airspeed;
-  extern Servo para_servo;
+  extern class Camera main_cam;
+  extern class Camera bonus_cam;
   extern Servo hs_servo;
+  extern Servo para_servo;
+
+  extern Common::Sensor_Data sensor_data;
+  extern Common::GPS_Data gps_data;
   
   void init();
 
-  // hardware setup functions
-  void setup_XBee();
+  // Teensy 4.1, BMP388, BNO085, and airspeed (MS4525DO) sensors operation
   void setup_BMP();
   void setup_BNO();
   void setup_airspeed();
-  void setup_GPS();
+  void read_sensors();
 
-  // TODO: sensors data reading functions
-  void read_sensors(Common::Sensor_Data &data);
-  void read_gps(Common::GPS_Data &data);
+  // Ultimate GPS Breakout operation
+  void setup_GPS();
+  void read_gps();
     
-  // XBee read/write radio functions
+  // XBee Pro S2C operation
+  void setup_XBee();
   void write_ground_radio(const String &data);
   bool read_ground_radio(String &data);
 
-  // buzzer functions
+  // Buzzer operation
   void buzzer_on();
   void buzzer_off();
 
-  // camera functions
-  void update_camera(bool record);
-  void start_recording();
-  void stop_recording();
-
-  static String build_packet(const Common::Payload_States &pay_states, const Common::GPS_Data &gps, const Common::Sensor_Data &sensors)
+  // Camera operation
+  class Camera 
   {
-    // <TEAM_ID>, <MISSION_TIME>, <PACKET_COUNT>, <MODE>, <STATE>, <ALTITUDE>,
-    // <AIR_SPEED>, <HS_DEPLOYED>, <PC_DEPLOYED>, <TEMPERATURE>, <VOLTAGE>,
-    // <PRESSURE>, <GPS_TIME>, <GPS_ALTITUDE>, <GPS_LATITUDE>, <GPS_LONGITUDE>,
-    // <GPS_SATS>, <TILT_X>, <TILT_Y>, <ROT_Z>, <CMD_ECHO>
-    String packet = String(Common::TEAM_ID) + ",";
-    packet += String(hour()) + ":" + String(minute()) + ":" + String(second()) + ",";
-    packet += String(EE_PACKET_COUNT) + ",";
-    if (SIM_ACTIVATE && SIM_ENABLE)
-      packet += "S,";
-    else
-      packet += "F,";
-    packet += States::EE_STATE + ",";
-    packet += String(sensors.altitude) + ","; 
-    packet += String(sensors.airspeed) + ",";
-    packet += pay_states.HS_DEPLOYED + ",";
-    packet += pay_states.PC_DEPLOYED + ",";
-    packet += String(sensors.temperature) + ",";
-    packet += String(sensors.vbat) + ",";
-    packet += String(sensors.pressure) + ",";
-    packet += String(gps.hours) + ":" + String(gps.minutes) + ":" + String(gps.seconds) + ",";
-    packet += String(gps.altitude) + ",";  
-    packet += String(gps.latitude) + ","; 
-    packet += String(gps.longitude) + ","; 
-    packet += String(gps.sats) + ",";
-    packet += String(sensors.tilt[0]) + ",";
-    packet += String(sensors.tilt[1]) + ",";    
-    packet += String(sensors.rotation_speed) + ",";
-    packet += lastCMD + "\r\n";
+    public: 
+      Camera(const byte camera_pin);
+      void update_camera(bool record);
+      bool is_recording();
 
-    return packet;
-  }
+    private:
+      const byte camera_pin;
+      elapsedMillis cameraHold;
+      bool cameraRecording;
+      bool firstCameraCall;
+
+      void start_recording();
+      void stop_recording();
+  };
 
 }
 

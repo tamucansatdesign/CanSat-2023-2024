@@ -3,72 +3,98 @@
 #include "States.h"
 
 Common::Payload_States pay_states;
-Common::GPS_Data gps_data;
-Common::Sensor_Data sensor_data;
-uint16_t States::EE_STATE = 0;
+
+// IMPROVEMENTS:
+// when processor resets request update from GSC: lastCMD, cameras operating?
+// add multithreading
+  // GPS thread
+  // Sensor/State diagram thread
+  // Heat shield continuous servo thread
+  // Telemetry thread (1 Hz)
+// BMP388 ground-level calibration
+
+// TODO:
+// Fix BNO085 tilt and rotation angles
+// Make heat shield deployment loop **********
+// Running average to account for spikes
+// Test EEPROM values 
+// Test mission time and set time command 
+// Test audio buzzer 
 
 void setup() {
   // Start Serial communication, if debugging
-  Serial.begin(115200);
-  Serial.println("Serial Connection Established");
+  Serial.begin(Common::SERIAL_BAUD);
+  Serial.println("Serial Connection Established.");
 
-  // Initialize all components 
-  Serial.println("Beginning Hardware Initialization...");
+  // Initialize all components  
   Hardware::init();
-  Serial.println("\nAll Hardware Initialized.\n");
 
-  // Get EEPROM values
-  // EEPROM.get(Common::BA_ADDR, Hardware::EE_BASE_ALTITUDE);  
-  // EEPROM.get(Common::PC_ADDR, Hardware::EE_PACKET_COUNT); 
-  // EEPROM.get(Common::ST_ADDR, States::EE_STATE);   
-  // EEPROM.get(Common::MS_ADDR, Hardware::EE_MISSION_TIME);
-  GROUND_XBEE_SERIAL.begin(115200);
+  // Hardware::main_cam.update_camera(true);
 }
 
 void loop() {
-  // Hardware::read_gps(gps_data);
-  // Hardware::read_sensors(sensor_data);
-  // Serial.println(Hardware::build_packet(pay_states, gps_data, sensor_data));
-  // Serial.println("Loop");
-  delay(1000);
+  States::processCommands(1,1,1,1,1);
+
+  Hardware::read_gps();
+  Hardware::read_sensors();
+
+  if (Hardware::CX) {
+    String packet = States::build_packet("Test", pay_states);
+    Serial.println(packet);
+    Hardware::write_ground_radio(packet);
+  }
+
+  delay(Common::TELEMETRY_DELAY);
+
+  if (Hardware::SIM_ACTIVATE) {
+    // Hardware::main_cam.update_camera(false);
+    Hardware::buzzer_on();
+    Serial.println("buzzer on");
+  }
+  else {
+    Hardware::buzzer_off();
+    Serial.println("buzzer off");
+  }
 }
 
 // void setup() {
-//   // // Start Serial communication, if debugging
-//   // Serial.begin(115200);
-//   // while (!Serial); // wait for serial connection
-//   // Serial.println("Serial Connection Established");
+//   Serial.begin(Common::SERIAL_BAUD);
+//   Serial.println("Serial Connection Established.");
 
-//   // Initialize all components 
-//   Serial.println("Beginning Hardware Initialization...");
+//   // Initialize hardware
 //   Hardware::init();
-//   Serial.println("All Hardware Initialized.");
 
-//   // Get EEPROM values
-//   EEPROM.get(Common::BA_ADDR, Hardware::EE_BASE_ALTITUDE);  
-//   EEPROM.get(Common::PC_ADDR, Hardware::EE_PACKET_COUNT); 
-//   EEPROM.get(Common::ST_ADDR, States::EE_STATE);   
+//   // Update recovery parameters with EEPROM
+//   EEPROM.get(Common::BP_ADDR, Hardware::EE_BASE_PRESSURE);
+//   EEPROM.get(Common::PC_ADDR, Hardware::EE_PACKET_COUNT);
+//   EEPROM.get(Common::ST_ADDR, States::EE_STATE);
 //   EEPROM.get(Common::MS_ADDR, Hardware::EE_MISSION_TIME);
+
+//   // Sync up RTC with GPS
+//   setTime(Hardware::gps_data.hour, Hardware::gps_data.minute, Hardware::gps_data.seconds, Hardware::gps_data.day, Hardware::gps_data.month, Hardware::gps_data.year);
 // }
 
 // void loop() {
-//   // put main code here to run repeatedly
+//   // Loop through each state 
 //   switch (States::EE_STATE)
-//   {
+//   { 
 //     case 1:
-//       States::Initialization(pay_states);
+//       States::Standby(pay_states, sensor_data, gps_data);
 //       break;
 //     case 2:
-//       States::Standby(pay_states);
+//       States::Ascent(pay_states, sensor_data, gps_data);
 //       break;
 //     case 3:
-//       States::Deployment(pay_states);
+//       States::Separation(pay_states, sensor_data, gps_data);
 //       break;
 //     case 4:
-//       States::Landing(pay_states);
+//       States::Descent(pay_states, sensor_data, gps_data);
+//       break;    
+//     case 5:
+//       States::Landing(pay_states, sensor_data, gps_data);
 //       break;
 //     default:
-//       States::Initialization(pay_states);
+//       States::Standby(pay_states, sensor_data, gps_data);
 //       break;
 //   }
 //   delay(Common::TELEMETRY_DELAY);
