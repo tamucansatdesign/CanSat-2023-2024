@@ -7,10 +7,23 @@ Common::CanSat_States cansat_states;
 // IMPROVEMENTS:
 // when processor resets request update from GSC: lastCMD, cameras operating?
 // add multithreading
-  // GPS thread
-  // Sensor/State diagram thread
-  // Heat shield continuous servo thread
-  // Telemetry thread (1 Hz)
+  // loop()              : Sensor read data/State diagram thread  : attached infinite thread
+  // ground_radio_loop() : Radio read/write/process thread (1 Hz) : detached infinite thread
+  // read_gps_loop()     : GPS read data thread                   : detached infinite thread
+  // deploy_hs_loop()    : Heat shield continuous servo thread    : detached finite thread
+    // Shared resources:
+      // general_mtx: SIM_ACTIVATE, SIM_ENABLE, SIM_PRESSURE, CX, EE_BASE_PRESSURE, EE_PACKET_COUNT, lastCMD
+        // loop()
+        // ground_radio_loop()
+      // sensor_mtx: bmp, bno, airspeed, sensor_data
+        // loop()
+        // ground_radio_loop()
+      // gps_mtx: gps_data
+        // ground_radio_loop()
+        // read_gps_loop()
+      // states_mtx: cansat_states, EE_STATE
+        // loop()
+        // deploy_hs_loop()
 // BMP388 ground-level calibration
 
 // TODO:

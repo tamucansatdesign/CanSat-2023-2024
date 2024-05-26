@@ -1,12 +1,40 @@
 {
   "Version": 1,
   "WorkspaceRootPath": "C:\\Users\\hirad\\Desktop\\School Stuff\\TAMU\\AERO\\CanSat\\CanSat-2023-2024\\CanSatGSW\\",
-  "Documents": [],
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{898C2C94-699B-4012-B55F-16A5DCCFD4EC}|CanSatGSW.csproj|c:\\users\\hirad\\desktop\\school stuff\\tamu\\aero\\cansat\\cansat-2023-2024\\cansatgsw\\mainwindow.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}|Form",
+      "RelativeMoniker": "D:0:0:{898C2C94-699B-4012-B55F-16A5DCCFD4EC}|CanSatGSW.csproj|solutionrelative:mainwindow.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}|Form"
+    }
+  ],
   "DocumentGroupContainers": [
     {
       "Orientation": 0,
       "VerticalTabListWidth": 256,
-      "DocumentGroups": []
+      "DocumentGroups": [
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": 1,
+          "Children": [
+            {
+              "$type": "Bookmark",
+              "Name": "ST:128:0:{116d2292-e37d-41cd-a077-ebacac4c8cc4}"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "MainWindow.cs [Design]",
+              "DocumentMoniker": "C:\\Users\\hirad\\Desktop\\School Stuff\\TAMU\\AERO\\CanSat\\CanSat-2023-2024\\CanSatGSW\\MainWindow.cs",
+              "RelativeDocumentMoniker": "MainWindow.cs",
+              "ToolTip": "C:\\Users\\hirad\\Desktop\\School Stuff\\TAMU\\AERO\\CanSat\\CanSat-2023-2024\\CanSatGSW\\MainWindow.cs [Design]",
+              "RelativeToolTip": "MainWindow.cs [Design]",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2024-05-25T19:39:22.627Z",
+              "EditorCaption": " [Design]"
+            }
+          ]
+        }
+      ]
     }
   ]
 }

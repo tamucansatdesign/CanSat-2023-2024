@@ -5,7 +5,7 @@
 #include <Arduino.h>
 #include <Wire.h>
 #include <TimeLib.h>
-
+// dev/multithreding
 // update the serial wire values to match actual configuration
 #define GPS_SERIAL Serial7
 #define GROUND_XBEE_SERIAL Serial8

@@ -22,6 +22,8 @@ namespace Hardware
   Servo para_servo;
   Servo hs_servo;
 
+  
+
   Common::Sensor_Data sensor_data;
   Common::GPS_Data gps_data;
   
@@ -294,6 +296,14 @@ namespace Hardware
 
     // No complete message received yet
     return false;
+  }
+
+  void ground_radio_loop() 
+  {
+    while (1) 
+    {
+
+    }
   }
 
   // Buzzer operation 
