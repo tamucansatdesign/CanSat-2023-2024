@@ -2,7 +2,6 @@
 #ifndef __COMMON_H__
 #define __COMMON_H__
 
-#include <Arduino.h>
 #include <Wire.h>
 #include <TimeLib.h>
 

@@ -1,13 +1,10 @@
-#include "Common.h"
-#include "Hardware.h"
 #include "States.h"
 
 namespace States
 {    
   void Landing()
-  { 
-    States::processCommands(1,1,1,1,1);
-    Hardware::read_gps();
+  {
+    Hardware::processCommands(1,1,1,1,1);
     Hardware::read_sensors();
 
     // Cease telemetry

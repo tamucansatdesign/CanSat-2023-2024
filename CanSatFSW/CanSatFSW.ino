@@ -2,112 +2,103 @@
 #include "Hardware.h"
 #include "States.h"
 
-Common::CanSat_States cansat_states;
-
 // IMPROVEMENTS:
-// when processor resets request update from GSC: lastCMD, cameras operating?
-// add multithreading
-  // loop()              : Sensor read data/State diagram thread  : attached infinite thread
-  // ground_radio_loop() : Radio read/write/process thread (1 Hz) : detached infinite thread
-  // read_gps_loop()     : GPS read data thread                   : detached infinite thread
-  // deploy_hs_loop()    : Heat shield continuous servo thread    : detached finite thread
-    // Shared resources:
-      // general_mtx: SIM_ACTIVATE, SIM_ENABLE, SIM_PRESSURE, CX, EE_BASE_PRESSURE, EE_PACKET_COUNT, lastCMD
-        // loop()
-        // ground_radio_loop()
-      // sensor_mtx: bmp, bno, airspeed, sensor_data
-        // loop()
-        // ground_radio_loop()
-      // gps_mtx: gps_data
-        // ground_radio_loop()
-        // read_gps_loop()
-      // states_mtx: cansat_states, EE_STATE
-        // loop()
-        // deploy_hs_loop()
+// when processor resets request update from GSC: cansat_states, lastCMD, cameras operating?
+      // servo_mtx???
 // BMP388 ground-level calibration
+// Running average to account for spikes
 
 // TODO:
 // Fix BNO085 tilt and rotation angles
-// Make heat shield deployment loop **********
-// Running average to account for spikes
 // Test EEPROM values 
 // Test mission time and set time command 
 // Test audio buzzer 
 
-void setup() {
-  // Start Serial communication, if debugging
-  Serial.begin(Common::SERIAL_BAUD);
-  Serial.println("Serial Connection Established.");
-
-  // Initialize all components  
-  Hardware::init();
-
-  // Hardware::main_cam.update_camera(true);
-}
-
-void loop() {
-  States::processCommands(1,1,1,1,1);
-
-  Hardware::read_gps();
-  Hardware::read_sensors();
-
-  if (Hardware::CX) {
-    String packet = States::build_packet("Test", cansat_states);
-    Serial.println(packet);
-    Hardware::write_ground_radio(packet);
-  }
-
-  delay(Common::TELEMETRY_DELAY);
-
-  if (Hardware::SIM_ACTIVATE) {
-    // Hardware::main_cam.update_camera(false);
-    Hardware::buzzer_on();
-    Serial.println("buzzer on");
-  }
-  else {
-    Hardware::buzzer_off();
-    Serial.println("buzzer off");
-  }
-}
-
 // void setup() {
+//   // Start Serial communication, if debugging
 //   Serial.begin(Common::SERIAL_BAUD);
 //   Serial.println("Serial Connection Established.");
 
-//   // Initialize hardware
+//   // Initialize all components  
 //   Hardware::init();
 
-//   // Update recovery parameters with EEPROM
-//   EEPROM.get(Common::BP_ADDR, Hardware::EE_BASE_PRESSURE);
-//   EEPROM.get(Common::PC_ADDR, Hardware::EE_PACKET_COUNT);
-//   EEPROM.get(Common::ST_ADDR, States::EE_STATE);
-
-//   // Sync up RTC with GPS
-//   setTime(Hardware::gps_data.hour, Hardware::gps_data.minute, Hardware::gps_data.seconds, Hardware::gps_data.day, Hardware::gps_data.month, Hardware::gps_data.year);
+//   // Hardware::main_cam.update_camera(true);
 // }
 
 // void loop() {
-//   // Loop through each state 
-//   switch (States::EE_STATE)
-//   { 
-//     case 1:
-//       States::Standby(cansat_states);
-//       break;
-//     case 2:
-//       States::Ascent();
-//       break;
-//     case 3:
-//       States::Separation(cansat_states);
-//       break;
-//     case 4:
-//       States::Descent(cansat_states);
-//       break;    
-//     case 5:
-//       States::Landing();
-//       break;
-//     default:
-//       States::Standby(cansat_states);
-//       break;
+//   States::processCommands(1,1,1,1,1);
+
+//   Hardware::read_gps();
+//   Hardware::read_sensors();
+
+//   if (Hardware::CX) {
+//     String packet = States::build_packet("Test", cansat_states);
+//     Serial.println(packet);
+//     Hardware::write_ground_radio(packet);
 //   }
+
 //   delay(Common::TELEMETRY_DELAY);
+
+//   if (Hardware::SIM_ACTIVATE) {
+//     // Hardware::main_cam.update_camera(false);
+//     Hardware::buzzer_on();
+//     Serial.println("buzzer on");
+//   }
+//   else {
+//     Hardware::buzzer_off();
+//     Serial.println("buzzer off");
+//   }
 // }
+
+void setup() {
+  Serial.begin(Common::SERIAL_BAUD);
+  Serial.println("Serial Connection Established.");
+
+  // Initialize hardware
+  Hardware::init();
+
+  // Update recovery parameters with EEPROM
+  EEPROM.get(Common::BP_ADDR, Hardware::EE_BASE_PRESSURE);
+  EEPROM.get(Common::PC_ADDR, Hardware::EE_PACKET_COUNT);
+  EEPROM.get(Common::ST_ADDR, States::EE_STATE);
+
+  // Begin detached infinite threads
+  threads.addThread(Hardware::read_gps_loop);
+  threads.addThread(Hardware::write_ground_radio_loop);
+
+  // Sync up RTC with GPS
+  Hardware::gps_mtx.lock();
+  setTime(Hardware::gps_data.hours, Hardware::gps_data.minutes, Hardware::gps_data.seconds, day(), month(), year());
+  Hardware::gps_mtx.unlock();
+}
+
+void loop() {
+  // Loop through each state 
+  Hardware::general_mtx.lock();
+  Hardware::sensor_mtx.lock();
+  Hardware::states_mtx.lock();
+  switch (States::EE_STATE)
+  { 
+    case 1:
+      States::Standby();
+      break;
+    case 2:
+      States::Ascent();
+      break;
+    case 3:
+      States::Separation();
+      break;
+    case 4:
+      States::Descent();
+      break;    
+    case 5:
+      States::Landing();
+      break;
+    default:
+      States::Standby();
+      break;
+  }
+  Hardware::general_mtx.unlock();
+  Hardware::sensor_mtx.unlock();
+  Hardware::states_mtx.unlock();
+}

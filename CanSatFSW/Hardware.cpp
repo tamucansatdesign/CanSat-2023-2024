@@ -1,4 +1,5 @@
 #include "Hardware.h"
+#include "States.h"
 
 namespace Hardware
 {
@@ -17,16 +18,21 @@ namespace Hardware
   Adafruit_BNO08x bno;
   Adafruit_GPS gps(&GPS_SERIAL);
   bfs::Ms4525do airspeed;
+  Servo pc_servo;
+  Servo hs_servo;
+  
   Camera main_cam(Common::CAMERA_PIN);
   Camera bonus_cam(Common::BONUS_CAMERA_PIN);
-  Servo para_servo;
-  Servo hs_servo;
 
-  
-
+  Common::CanSat_States cansat_states;
   Common::Sensor_Data sensor_data;
   Common::GPS_Data gps_data;
-  
+
+  Threads::Mutex general_mtx;
+  Threads::Mutex sensor_mtx;
+  Threads::Mutex gps_mtx;
+  Threads::Mutex states_mtx;
+    
   // Core function of the Boot-up states. 
   // Performs set up for all sensors and other components, and does anything
   // that needs to be done before Standby state can be entered.
@@ -223,30 +229,26 @@ namespace Hardware
     // }
   }
 
-  void read_gps()
+  void read_gps_loop() 
   {
-    bool newData = false;
-
-    while (!gps.newNMEAreceived())
+    char c = gps.read();
+    if (gps.newNMEAreceived()) 
     {
-      char c = gps.read();
+      if (gps.parse(gps.lastNMEA()))
+      {
+        gps_mtx.lock();
+        setTime(gps.hour, gps.minute, gps.seconds, gps.day, gps.month, gps.year);
+        gps_data.hours = gps.hour;
+        gps_data.minutes = gps.minute;
+        gps_data.seconds = gps.seconds;
+        gps_data.milliseconds = gps.milliseconds;
+        gps_data.latitude = gps.latitude;
+        gps_data.longitude = gps.longitude;
+        gps_data.altitude = gps.altitude;
+        gps_data.sats = (byte)(unsigned int)gps.satellites;  // We do this double conversion to avoid signing issues
+        gps_mtx.unlock();
+      }
     }
-    newData = gps.parse(gps.lastNMEA());
-
-    if (newData)
-    {
-      //Serial.println(String(gps.hour) + ":" + String(gps.minute) + ":" + String(gps.seconds) + "." + String(gps.milliseconds));
-      setTime(gps.hour, gps.minute, gps.seconds, gps.day, gps.month, gps.year);
-    }
-
-    gps_data.hours = gps.hour;
-    gps_data.minutes = gps.minute;
-    gps_data.seconds = gps.seconds;
-    gps_data.milliseconds = gps.milliseconds;
-    gps_data.latitude = gps.latitude;
-    gps_data.longitude = gps.longitude;
-    gps_data.altitude = gps.altitude;
-    gps_data.sats = (byte)(unsigned int)gps.satellites;  // We do this double conversion to avoid signing issues
   }
 
   // XBee Pro S2C operation
@@ -298,11 +300,53 @@ namespace Hardware
     return false;
   }
 
-  void ground_radio_loop() 
+  void write_ground_radio_loop() 
   {
+    // Transmit 1 Hz telemetry
     while (1) 
     {
+      general_mtx.lock();
 
+      if (CX) {
+        String packet;
+
+        sensor_mtx.lock();
+        gps_mtx.lock();
+        states_mtx.lock();
+
+        switch (States::EE_STATE) 
+        {
+          case 1:
+            packet = build_packet("Standby");
+            break;
+          case 2:
+            packet = build_packet("Ascent");
+            break;
+          case 3:
+            packet = build_packet("Separation");
+            break;
+          case 4:
+            packet = build_packet("Descent");
+            break;    
+          case 5:
+            packet = build_packet("Landing");
+            break;
+          default:
+            packet = build_packet("Standby");
+            break;
+        }
+
+        Serial.println(packet);
+        write_ground_radio(packet);
+
+        sensor_mtx.unlock();
+        gps_mtx.unlock();
+        states_mtx.unlock();
+      }
+
+      general_mtx.unlock();
+
+      delay(Common::TELEMETRY_DELAY);
     }
   }
 
@@ -375,6 +419,178 @@ namespace Hardware
         cameraRecording = false;
         firstCameraCall = true;
       }
+  }
+
+  // Servo operation  
+  void deploy_hs_loop() 
+  {
+    servo_mtx.lock()
+    for (int loop = 0; loop < 10; loop++)
+    {
+      hs_servo.write(180);
+    }
+    servo_mtx.unlock();
+    cansat_states.HS_DEPLOYED = 'P';
+  }
+
+  void deploy_pc_loop()
+  {
+    servo_mtx.lock();
+    pc_servo.write(180);
+    servo_mtx.unlock();
+    cansat_states.PC_DEPLOYED = 'C';
+  }
+
+  void release_hs_loop() 
+  {
+    servo_mtx.lock();
+    for (int loop = 0; loop < 3; loop++)
+    {
+      hs_servo.write(180);
+    }
+    servo_mtx.unlock();
+    cansat_states.HS_RELEASED = 'R';
+  }
+
+  // helper functions
+  void processCommands(const bool enableCX, const bool enableST, const bool enableSIM, const bool enableCAL, const bool enableBCN)
+  {
+    String received;
+    if (read_ground_radio(received)) 
+    {
+      // remove whitespace and commas from received string
+      received.trim();
+      received.replace(",", "");
+
+      // check if command sent with proper team id
+      if (received.startsWith("CMD" + String(Common::TEAM_ID))) 
+      {
+        String cmd = received.substring(7,received.length());
+        lastCMD = cmd;
+        Serial.println(cmd);
+
+        // CMD,<TEAM_ID>,CX,ON|OFF
+        if (enableCX && cmd.startsWith("CX")) 
+        {
+          if (cmd.startsWith("CXON")) 
+          {
+            CX = true;
+          }
+          else 
+          {
+            CX = false;
+          }
+        }
+
+        // CMD,<TEAM_ID>,ST,<UTC_TIME>|GPS
+        else if (enableST && cmd.startsWith("ST")) 
+        {
+          if (cmd.startsWith("STGPS"))
+          {
+            // Set to GPS time
+            setTime(gps_data.hours, gps_data.minutes, gps_data.seconds, day(), month(), year());
+          }
+          else 
+          {
+            // Set to utc time
+            String utc = cmd.substring(2,cmd.length());
+
+            int hours = utc.substring(0, 2).toInt();
+            int minutes = utc.substring(3, 5).toInt();
+            int seconds = utc.substring(6, 8).toInt();
+
+            setTime(hours, minutes, seconds, day(), month(), year());
+          }
+        }
+
+        // CMD,<TEAM_ID>,SIM,<MODE>
+        else if (enableSIM && cmd.startsWith("SIM")) 
+        {
+          if (cmd.startsWith("SIMENABLE")) 
+          {
+            SIM_ENABLE = true;
+          }
+          else if (cmd.startsWith("SIMACTIVATE")) 
+          {
+            if (SIM_ENABLE) 
+            {
+              SIM_ACTIVATE = true;
+            }
+          }
+          else if (cmd.startsWith("SIMDISABLE")) 
+          {
+            SIM_ENABLE = false;
+            SIM_ACTIVATE = false;
+          }
+        }
+
+        // CMD,<TEAM_ID>,SIMP,<PRESSURE>
+        else if (enableSIM && cmd.startsWith("SIMP")) 
+        {
+          SIM_PRESSURE = cmd.substring(4,cmd.length()).toInt();
+        }
+
+        // CMD,<TEAM_ID>,CAL 
+        else if (enableCAL && cmd.startsWith("CAL")) 
+        {
+          read_sensors();
+          EE_BASE_PRESSURE = sensor_data.pressure / 100;
+          // TODO: EEPROM.put(Common::BP_ADDR, EE_BASE_PRESSURE);
+        }
+
+        // CMD,<TEAM_ID>,BCN,ON|OFF
+        else if (enableBCN && cmd.startsWith("BCN"))
+        {
+          if (cmd.startsWith("BCNON")) 
+          {
+            buzzer_on();
+          }
+          else 
+          {
+            buzzer_off();
+          }
+        }
+        
+        // else ignore
+      }
+    }
+  }
+
+  String build_packet(String state)
+  {
+    // <TEAM_ID>, <MISSION_TIME>, <PACKET_COUNT>, <MODE>, <STATE>, <ALTITUDE>,
+    // <AIR_SPEED>, <HS_DEPLOYED>, <PC_DEPLOYED>, <TEMPERATURE>, <VOLTAGE>,
+    // <PRESSURE>, <GPS_TIME>, <GPS_ALTITUDE>, <GPS_LATITUDE>, <GPS_LONGITUDE>,
+    // <GPS_SATS>, <TILT_X>, <TILT_Y>, <ROT_Z>, <CMD_ECHO>
+    String packet = String(Common::TEAM_ID) + ",";
+    packet += String(hour()) + ":" + String(minute()) + ":" + String(second()) + ",";
+    packet += String(EE_PACKET_COUNT) + ",";
+    if (SIM_ACTIVATE && SIM_ENABLE)
+      packet += "S,";
+    else
+      packet += "F,";
+    packet += state + ",";
+    packet += String(sensor_data.altitude) + ","; 
+    packet += String(sensor_data.airspeed) + ",";
+    packet += cansat_states.HS_DEPLOYED + ",";
+    packet += cansat_states.PC_DEPLOYED + ",";
+    packet += String(sensor_data.temperature) + ",";
+    packet += String(sensor_data.vbat) + ",";
+    packet += String(sensor_data.pressure) + ",";
+    packet += String(gps_data.hours) + ":" + String(gps_data.minutes) + ":" + String(gps_data.seconds) + ",";
+    packet += String(gps_data.altitude) + ",";  
+    packet += String(gps_data.latitude) + ","; 
+    packet += String(gps_data.longitude) + ","; 
+    packet += String(gps_data.sats) + ",";
+    packet += String(sensor_data.tilt_x) + ",";
+    packet += String(sensor_data.tilt_y) + ",";    
+    packet += String(sensor_data.rotation_z) + ",";
+    packet += lastCMD + "\r\n";
+
+    ++EE_PACKET_COUNT;
+    // TODO: EEPROM.put(Common::PC_ADDR, EE_PACKET_COUNT);
+
+    return packet;
   }
 
 }
