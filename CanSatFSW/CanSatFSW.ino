@@ -6,7 +6,8 @@
 // when processor resets request update from GSC: cansat_states, lastCMD, cameras operating?
       // servo_mtx???
 // BMP388 ground-level calibration
-// Running average to account for spikes
+// Running average to account for spikes: Kalman filter
+// Static variables???
 
 // TODO:
 // Fix BNO085 tilt and rotation angles
