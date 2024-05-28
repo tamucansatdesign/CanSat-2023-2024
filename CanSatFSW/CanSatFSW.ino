@@ -75,9 +75,6 @@ void setup() {
 
 void loop() {
   // Loop through each state 
-  Hardware::general_mtx.lock();
-  Hardware::sensor_mtx.lock();
-  Hardware::states_mtx.lock();
   switch (States::EE_STATE)
   { 
     case 1:
@@ -99,7 +96,4 @@ void loop() {
       States::Standby();
       break;
   }
-  Hardware::general_mtx.unlock();
-  Hardware::sensor_mtx.unlock();
-  Hardware::states_mtx.unlock();
 }

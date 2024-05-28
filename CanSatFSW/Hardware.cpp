@@ -131,6 +131,9 @@ namespace Hardware
 
   void read_sensors()   // read data from Teensy, BMP, BNO, and Airspeed sensors
   {  
+    general_mtx.lock();
+    sensor_mtx.lock();
+
     // read Teensy: vbat (voltage)
     sensor_data.vbat = ((analogRead(Common::VOLTAGE_PIN) / 1023.0) * 4.2) + 0.35;
 
@@ -192,6 +195,9 @@ namespace Hardware
     {
       sensor_data.airspeed = bfs::Ias_mps(airspeed.pres_pa());
     }
+
+    general_mtx.unlock();
+    sensor_mtx.unlock();
   }
 
   // Ultimate GPS Breakout operation
@@ -231,12 +237,13 @@ namespace Hardware
 
   void read_gps_loop() 
   {
+    gps_mtx.lock();
+
     char c = gps.read();
     if (gps.newNMEAreceived()) 
     {
       if (gps.parse(gps.lastNMEA()))
       {
-        gps_mtx.lock();
         setTime(gps.hour, gps.minute, gps.seconds, gps.day, gps.month, gps.year);
         gps_data.hours = gps.hour;
         gps_data.minutes = gps.minute;
@@ -246,9 +253,10 @@ namespace Hardware
         gps_data.longitude = gps.longitude;
         gps_data.altitude = gps.altitude;
         gps_data.sats = (byte)(unsigned int)gps.satellites;  // We do this double conversion to avoid signing issues
-        gps_mtx.unlock();
       }
     }
+
+    gps_mtx.unlock();
   }
 
   // XBee Pro S2C operation
@@ -271,7 +279,11 @@ namespace Hardware
 
   void write_ground_radio(const String &data) 
   {
+    radio_mtx.lock();
+    
     GROUND_XBEE_SERIAL.println(data);
+
+    radio_mtx.unlock();
     
     telemetry = SD.open("Flight_2054.csv", FILE_WRITE);
     telemetry.println(data);
@@ -282,6 +294,7 @@ namespace Hardware
   {
     String buffer = "";  // Buffer to hold incoming data
 
+    radio_mtx.lock();
     while (GROUND_XBEE_SERIAL.available())
     {
         char c = GROUND_XBEE_SERIAL.read();
@@ -292,10 +305,12 @@ namespace Hardware
         {
             // Remove the delimiter from the buffer and return the message
             data = buffer.substring(0, buffer.length() - 2);  // Remove \r\n
+            radio_mtx.unlock();
             return true;
         }
     }
 
+    radio_mtx.unlock();
     // No complete message received yet
     return false;
   }
@@ -309,10 +324,6 @@ namespace Hardware
 
       if (CX) {
         String packet;
-
-        sensor_mtx.lock();
-        gps_mtx.lock();
-        states_mtx.lock();
 
         switch (States::EE_STATE) 
         {
@@ -338,10 +349,6 @@ namespace Hardware
 
         Serial.println(packet);
         write_ground_radio(packet);
-
-        sensor_mtx.unlock();
-        gps_mtx.unlock();
-        states_mtx.unlock();
       }
 
       general_mtx.unlock();
@@ -425,31 +432,52 @@ namespace Hardware
   void deploy_hs_loop() 
   {
     servo_mtx.lock()
+    
     for (int loop = 0; loop < 10; loop++)
     {
       hs_servo.write(180);
     }
+
     servo_mtx.unlock();
+
+    states_mtx.lock();
+
     cansat_states.HS_DEPLOYED = 'P';
+
+    states_mtx.unlock();
   }
 
   void deploy_pc_loop()
   {
     servo_mtx.lock();
+
     pc_servo.write(180);
+
     servo_mtx.unlock();
+
+    states_mtx.lock();
+
     cansat_states.PC_DEPLOYED = 'C';
+
+    states_mtx.unlock();
   }
 
   void release_hs_loop() 
   {
     servo_mtx.lock();
+
     for (int loop = 0; loop < 3; loop++)
     {
       hs_servo.write(180);
     }
+
     servo_mtx.unlock();
+
+    states_mtx.lock();
+
     cansat_states.HS_RELEASED = 'R';
+
+    states_mtx.unlock();
   }
 
   // helper functions
@@ -469,9 +497,12 @@ namespace Hardware
         lastCMD = cmd;
         Serial.println(cmd);
 
+
         // CMD,<TEAM_ID>,CX,ON|OFF
         if (enableCX && cmd.startsWith("CX")) 
         {
+          general_mtx.lock();
+
           if (cmd.startsWith("CXON")) 
           {
             CX = true;
@@ -480,6 +511,8 @@ namespace Hardware
           {
             CX = false;
           }
+
+          general_mtx.unlock();
         }
 
         // CMD,<TEAM_ID>,ST,<UTC_TIME>|GPS
@@ -488,7 +521,9 @@ namespace Hardware
           if (cmd.startsWith("STGPS"))
           {
             // Set to GPS time
+            gps_mtx.lock();
             setTime(gps_data.hours, gps_data.minutes, gps_data.seconds, day(), month(), year());
+            gps_mtx.unlock();
           }
           else 
           {
@@ -506,6 +541,8 @@ namespace Hardware
         // CMD,<TEAM_ID>,SIM,<MODE>
         else if (enableSIM && cmd.startsWith("SIM")) 
         {
+          general_mtx.lock();
+
           if (cmd.startsWith("SIMENABLE")) 
           {
             SIM_ENABLE = true;
@@ -522,19 +559,27 @@ namespace Hardware
             SIM_ENABLE = false;
             SIM_ACTIVATE = false;
           }
+
+          general_mtx.unlock();
         }
 
         // CMD,<TEAM_ID>,SIMP,<PRESSURE>
         else if (enableSIM && cmd.startsWith("SIMP")) 
         {
+          general_mtx.lock();
           SIM_PRESSURE = cmd.substring(4,cmd.length()).toInt();
+          general_mtx.unlock();
         }
 
         // CMD,<TEAM_ID>,CAL 
         else if (enableCAL && cmd.startsWith("CAL")) 
         {
           read_sensors();
+
+          general_mtx.lock();
           EE_BASE_PRESSURE = sensor_data.pressure / 100;
+          general_mtx.unlock();
+
           // TODO: EEPROM.put(Common::BP_ADDR, EE_BASE_PRESSURE);
         }
 
@@ -562,6 +607,10 @@ namespace Hardware
     // <AIR_SPEED>, <HS_DEPLOYED>, <PC_DEPLOYED>, <TEMPERATURE>, <VOLTAGE>,
     // <PRESSURE>, <GPS_TIME>, <GPS_ALTITUDE>, <GPS_LATITUDE>, <GPS_LONGITUDE>,
     // <GPS_SATS>, <TILT_X>, <TILT_Y>, <ROT_Z>, <CMD_ECHO>
+    sensor_mtx.lock();
+    gps_mtx.lock();
+    states_mtx.lock();
+
     String packet = String(Common::TEAM_ID) + ",";
     packet += String(hour()) + ":" + String(minute()) + ":" + String(second()) + ",";
     packet += String(EE_PACKET_COUNT) + ",";
@@ -590,7 +639,14 @@ namespace Hardware
     ++EE_PACKET_COUNT;
     // TODO: EEPROM.put(Common::PC_ADDR, EE_PACKET_COUNT);
 
+    sensor_mtx.unlock();
+    gps_mtx.unlock();
+    states_mtx.unlock();
+
     return packet;
   }
+
+  // Kalman filter operation
+
 
 }

@@ -51,22 +51,28 @@ namespace Hardware
   // Mutexes for their defined shared resources 
   extern Threads::Mutex general_mtx;           // shared resources: SIM_ACTIVATE, SIM_ENABLE, SIM_PRESSURE, CX, EE_BASE_PRESSURE, EE_PACKET_COUNT, lastCMD 
     // used in:
-      // loop()
+      // read_sensors()
       // write_ground_radio_loop()
   extern Threads::Mutex sensor_mtx;            // shared resources: bmp, bno, airspeed, sensor_data
     // used in:
-      // loop()
-      // write_ground_radio_loop()
-  extern Threads::Mutex gps_mtx;               // shared resources: gps, gps_data
+      // read_sensors()
+      // build_packet()
+  extern Threads::Mutex gps_mtx;               // shared resources: gps, gps_data, GPS_SERIAL
     // used in:
-      // write_ground_radio_loop()
       // read_gps_loop()
+      // processCommands()
+      // build_packet()
+  extern Threads::Mutex radio_mtx;             // shared resources: GROUND_XBEE_SERIAL
+    // used in:
+      // read_ground_radio()
+      // write_ground_radio()
   extern Threads::Mutex states_mtx;            // shared resources: cansat_states, EE_STATE
     // used in:
       // loop()
       // deploy_hs_loop()
       // deploy_pc_loop()
       // release_hs_loop()
+      // build_packet()
   extern Threads::Mutex servo_mtx;             // shared resources: hs_servo, para_servo
     // used in:
       // deploy_hs_loop()
