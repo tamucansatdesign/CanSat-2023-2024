@@ -42,18 +42,6 @@ namespace Common
     char PC_DEPLOYED; // parachute deployment: deployed -> 'C' ; else 'N'
   };
 
-  struct GPS_Data
-  {
-    uint8_t hours;
-    uint8_t minutes;
-    uint8_t seconds;
-    uint16_t milliseconds;
-    float latitude; 
-    float longitude;
-    float altitude;
-    byte sats;
-  };
-
   struct Sensor_Data
   {
     float vbat; // Teensy voltage sensor
@@ -64,6 +52,18 @@ namespace Common
     float tilt_y; // BNO 085: tilt in Y (pitch)
     float rotation_z; // BNO 085: rotation speed around Z (yaw)
     float airspeed; // pitot tube airspeed sensor
+  };
+
+  struct GPS_Data
+  {
+    uint8_t hours;
+    uint8_t minutes;
+    uint8_t seconds;
+    uint16_t milliseconds;
+    float latitude; 
+    float longitude;
+    float altitude;
+    byte sats;
   };
   
 }
